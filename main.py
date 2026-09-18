@@ -1,6 +1,10 @@
+import argparse
 import random
 import time
 from functools import wraps
+
+from logger import TerminalLogger, make_logger
+from result_tracker import ResultTracker
 
 
 # --- Configuration Constants ---
@@ -16,35 +20,38 @@ DEFAULT_GAMMA = 0.95    # discount factor
 # --- Decorator Pattern ---
 
 def log_episode(func):
-    """Decorator that logs each training episode."""
+    """Decorator that logs each training episode via the agent's Logger."""
     @wraps(func)
     def wrapper(self, episode):
         result = func(self, episode)
         value, weight = result
-        # Determine best tracked value if available
-        if hasattr(self, "tracker") and self.tracker is not None and self.tracker.best_value != float("-inf"):
-            best_display = f"{self.tracker.best_value:.1f}"
+        # Best value known so far: prefer the ResultTracker if present,
+        # otherwise fall back to the agent's own best_value attribute.
+        tracker = getattr(self, "tracker", None)
+        if tracker is not None and tracker.best_value != float("-inf"):
+            best = tracker.best_value
         else:
-            best_display = "N/A"
-
-        print(
-            f"  Episode {episode:5d} | "
-            f"Reward: {value:7.1f} | "
-            f"Weight: {weight}/{self.env.capacity} | "
-            f"Best: {best_display}"
+            best = getattr(self, "best_value", float("-inf"))
+        # The agent's logger is an injected Strategy service (terminal or
+        # CSV): the decorator only depends on the Logger interface.
+        self.logger.log_episode(
+            episode, value, weight,
+            capacity=self.env.capacity,
+            best=best,
         )
         return result
     return wrapper
 
 
 def time_execution(func):
-    """Decorator that measures execution time."""
+    """Decorator that measures execution time (logged via self.logger)."""
     @wraps(func)
     def wrapper(*args, **kwargs):
         start = time.perf_counter()
         result = func(*args, **kwargs)
         elapsed = time.perf_counter() - start
-        print(f"\nTraining finished in {elapsed:.3f}s")
+        # Method decorator: the first argument is the instance (the agent).
+        args[0].logger.log_message(f"\nTraining finished in {elapsed:.3f}s")
         return result
     return wrapper
 
@@ -204,8 +211,11 @@ class QLearningAgent:
     - The term [reward + γ * max Q(s',a') - Q(s,a)] is the "TD error"
       (temporal difference error) — the gap between predicted and actual value.
     """
-    def __init__(self, env, epsilon=DEFAULT_EPSILON, alpha=DEFAULT_ALPHA, gamma=DEFAULT_GAMMA, tracker=None):
+    def __init__(self, env, logger=None, epsilon=DEFAULT_EPSILON, alpha=DEFAULT_ALPHA, gamma=DEFAULT_GAMMA, tracker=None):
         self.env = env
+        # Logger strategy (injected service): TerminalLogger by default,
+        # or a CsvLogger for file output — swap by passing a different one.
+        self.logger = logger if logger is not None else TerminalLogger()
         # Closure: Q-table encapsulates the learning memory
         self.get_q, self.set_q, self.q_size = make_q_table()
         # Closure: epsilon-greedy policy encapsulates exploration strategy
@@ -214,6 +224,10 @@ class QLearningAgent:
         self.gamma = gamma    # Discount factor (γ): value of future rewards
         # Result tracking is delegated to an optional ResultTracker
         self.tracker = tracker
+        if tracker is None:
+            # Fallback bookkeeping when no ResultTracker is supplied
+            self.best_value = float("-inf")
+            self.best_items = []
 
     @log_episode
     def train_episode(self, episode):
@@ -248,7 +262,9 @@ class QLearningAgent:
 
         # After episode: check solution quality and notify tracker if any
         items, weight, value = self.env.get_solution(self.get_q)
-        if value > self.best_value:
+        if self.tracker is not None:
+            self.tracker.update(value, items, weight)
+        elif value > self.best_value:
             self.best_value = value
             self.best_items = items
 
@@ -261,30 +277,25 @@ class QLearningAgent:
         Each episode the agent gets slightly smarter as Q-values
         converge toward optimal values through repeated updates.
         """
-        print("\n--- Training Start ---\n")
+        self.logger.log_message("\n--- Training Start ---\n")
         for ep in range(1, episodes + 1):
             self.train_episode(ep)
-        print("\n--- Training End ---")
+        self.logger.log_message("\n--- Training End ---")
 
 
 # --- Presentation ---
 
 def display_result(env, agent):
-    items, total_w, total_v = env.get_solution(agent.get_q)
-    print("\n" + "=" * 50)
-    print("  OPTIMAL SOLUTION")
-    print("=" * 50)
-    print(f"  Backpack capacity: {env.capacity}")
-    print(f"  Items available:   {len(env.items)}")
-    print()
-    print("  Selected items:")
-    for i in items:
-        w, v = env.items[i]
-        print(f"    Item {i}: weight={w}, value={v}")
-    print()
-    print(f"  Total weight: {total_w} / {env.capacity}")
-    print(f"  Total value:  {total_v:.1f}")
-    print("=" * 50)
+    """Show the optimal solution via the agent's Logger strategy."""
+    indices, total_w, total_v = env.get_solution(agent.get_q)
+    selected = [(i, *env.items[i]) for i in indices]  # (index, weight, value)
+    agent.logger.log_solution(
+        items=selected,
+        total_w=total_w,
+        total_v=total_v,
+        capacity=env.capacity,
+        available=len(env.items),
+    )
 
 
 # --- Main ---
@@ -292,6 +303,23 @@ def display_result(env, agent):
 
 def main():
     random.seed(42)  # Fixed seed for reproducible results
+
+    # === LOGGER SELECTION (Strategy pattern) ===
+    # --log terminal -> TerminalLogger (formatted text on stdout)
+    # --log csv      -> CsvLogger      (rows in a CSV file)
+    parser = argparse.ArgumentParser(description="RL knapsack solver")
+    parser.add_argument(
+        "--log",
+        choices=["terminal", "csv"],
+        default="terminal",
+        help="Logger strategy to use: 'terminal' (default) or 'csv'",
+    )
+    parser.add_argument(
+        "--csv-path",
+        default="training_log.csv",
+        help="Output file for the CSV logger (default: training_log.csv)",
+    )
+    args = parser.parse_args()
 
     # === PROBLEM SETUP ===
     capacity = 30  # Maximum weight the backpack can hold
@@ -304,8 +332,18 @@ def main():
     # === CREATE ENVIRONMENT, TRACKER, AND AGENT ===
     env = KnapsackEnv(capacity, items, penalty=PENALTY_FOR_OVERFILL)
     tracker = ResultTracker()
-    agent = QLearningAgent(env, epsilon=DEFAULT_EPSILON, alpha=DEFAULT_ALPHA, gamma=DEFAULT_GAMMA, tracker=tracker)
+    logger = make_logger(args.log, csv_path=args.csv_path)
+    agent = QLearningAgent(
+        env,
+        logger=logger,
+        epsilon=DEFAULT_EPSILON,
+        alpha=DEFAULT_ALPHA,
+        gamma=DEFAULT_GAMMA,
+        tracker=tracker,
+    )
 
+    # Program banner stays on the terminal (cosmetic); the logger strategy
+    # captures the training flow: episodes, timing, and the final solution.
     print("=" * 50)
     print("  RL KNAPSACK SOLVER")
     print("=" * 50)
@@ -314,16 +352,20 @@ def main():
     print(f"  Q-table entries after training:")
 
     # === TRAINING ===
-    # 10 episodes = 10 complete passes through all items.
+    # 500 episodes = 500 complete passes through all items.
     # Early episodes explore randomly; later episodes exploit learned Q-values.
-    agent.train(episodes=500)
+    try:
+        agent.train(episodes=500)
 
-    # === RESULTS ===
-    print(f"\n  Q-table entries: {agent.q_size()}")
-    display_result(env, agent)
-
-    # Print best result as tracked by the ResultTracker
-    print(f"\nBest tracked value: {tracker.best_value:.1f} (weight {tracker.best_weight})")
+        # === RESULTS ===
+        logger.log_message(f"\n  Q-table entries: {agent.q_size()}")
+        display_result(env, agent)
+        logger.log_message(
+            f"\nBest tracked value: {tracker.best_value:.1f} "
+            f"(weight {tracker.best_weight})"
+        )
+    finally:
+        logger.close()
 
 
 if __name__ == "__main__":

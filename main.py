@@ -298,12 +298,7 @@ def display_result(env, agent):
     )
 
 
-# --- Main ---
-# This ties everything together: environment, agent, and training loop.
-
-def main():
-    random.seed(42)  # Fixed seed for reproducible results
-
+def terminal_arg_parser():
     # === LOGGER SELECTION (Strategy pattern) ===
     # --log terminal -> TerminalLogger (formatted text on stdout)
     # --log csv      -> CsvLogger      (rows in a CSV file)
@@ -319,7 +314,18 @@ def main():
         default="training_log.csv",
         help="Output file for the CSV logger (default: training_log.csv)",
     )
-    args = parser.parse_args()
+
+    return parser.parse_args()
+
+
+# --- Main ---
+# This ties everything together: environment, agent, and training loop.
+
+def main():
+    random.seed(42)  # Fixed seed for reproducible results
+
+    # Parse the arguments from the terminal
+    args = terminal_arg_parser()
 
     # === PROBLEM SETUP ===
     capacity = 30  # Maximum weight the backpack can hold
@@ -352,7 +358,6 @@ def main():
     print(f"  Q-table entries after training:")
 
     # === TRAINING ===
-    # 500 episodes = 500 complete passes through all items.
     # Early episodes explore randomly; later episodes exploit learned Q-values.
     try:
         agent.train(episodes=500)

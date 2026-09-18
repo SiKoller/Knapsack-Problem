@@ -146,7 +146,7 @@ class QLearningAgent:
         state = self.env.reset()
         total_reward = 0.0
 
-        while not self.env.is_done(state):
+        while not self.env.is_done():
             # EXPLORE: agent selects action using epsilon-greedy policy
             action = self.explore(state, [0, 1], self.get_q)
 

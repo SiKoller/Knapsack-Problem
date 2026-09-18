@@ -2,9 +2,9 @@ import os
 import sys
 import unittest
 
-# Ensure the package directory is on sys.path so `result_tracker` can be imported
+# Ensure the project root is on sys.path so the `rl_knapsack` package can be imported
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from result_tracker import ResultTracker
+from rl_knapsack.result_tracker import ResultTracker
 
 class TestResultTracker(unittest.TestCase):
     def test_initial_state(self):

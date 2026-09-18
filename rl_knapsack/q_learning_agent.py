@@ -2,8 +2,8 @@ import random
 import time
 from functools import wraps
 
-from config import DEFAULT_ALPHA, DEFAULT_EPSILON, DEFAULT_GAMMA
-from logger import TerminalLogger
+from .config import DEFAULT_ALPHA, DEFAULT_EPSILON, DEFAULT_GAMMA
+from .logger import TerminalLogger
 
 
 # --- Decorator Pattern ---

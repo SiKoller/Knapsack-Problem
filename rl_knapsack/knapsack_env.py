@@ -1,4 +1,4 @@
-from reward_strategy import KnapsackReward, RewardStrategy
+from .reward_strategy import KnapsackReward, RewardStrategy
 
 
 # --- Environment ---

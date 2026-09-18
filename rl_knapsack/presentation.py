@@ -1,6 +1,6 @@
 import argparse
 
-from config import BANNER_WIDTH
+from .config import BANNER_WIDTH
 
 
 # --- Presentation ---

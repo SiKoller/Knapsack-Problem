@@ -1,6 +1,6 @@
 import random
 
-from config import (
+from rl_knapsack.config import (
     DEFAULT_ALPHA,
     DEFAULT_EPISODES,
     DEFAULT_EPSILON,
@@ -9,11 +9,11 @@ from config import (
     KNAPSACK_CAPACITY,
     RANDOM_SEED,
 )
-from knapsack_env import KnapsackEnv
-from logger import make_logger
-from presentation import display_result, print_banner, terminal_arg_parser
-from q_learning_agent import QLearningAgent
-from result_tracker import ResultTracker
+from rl_knapsack.knapsack_env import KnapsackEnv
+from rl_knapsack.logger import make_logger
+from rl_knapsack.presentation import display_result, print_banner, terminal_arg_parser
+from rl_knapsack.q_learning_agent import QLearningAgent
+from rl_knapsack.result_tracker import ResultTracker
 
 
 # --- Main ---

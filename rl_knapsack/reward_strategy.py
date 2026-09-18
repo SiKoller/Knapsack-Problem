@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from config import PENALTY_FOR_OVERFILL
+from .config import PENALTY_FOR_OVERFILL
 
 
 # --- Reward Strategy ---

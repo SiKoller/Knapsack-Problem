@@ -53,25 +53,21 @@ Architecture: Environment (`KnapsackEnv`), Agent (`QLearningAgent`), Presentatio
 | PY-TEST-001 | Medium | High | Testability | `main.py` | No test coverage |
 
 ## Detailed Findings
-
-### [MEDIUM] PY-SMELL-001 — Magic number for penalty value
-
-**Location:** `Lesson1/main.py:87`  
-**Confidence:** High  
+# Python Code Analysis Report
+**Repository:** Knapsack-Problem  
+**Analysis date:** 2026-09-11  
+**Scope:** `Knapsack-Problem/main.py` (single file, 206 lines)  
+**Overall score:** 7.6/10
 **Principles:** KISS, Readability
 
+Architecture: Environment (`KnapsackEnv`), Agent (`QLearningAgent`), presentation (`display_result`), and the main entry point.
+```python
+return (new_weight, idx + 1), -10.0
 **Evidence:**
 ```python
 return (new_weight, idx + 1), -10.0
 ```
-
-**Why it matters:** The penalty value `-10.0` is an unexplained constant. A reader must infer its purpose (penalizing overfill) and magnitude rationale. Changing the penalty requires finding all hard-coded instances.
-
 **Recommendation:** Extract to a named constant or constructor parameter:
-```python
-PENALTY_FOR_OVERFILL = -10.0
-```
-
 **Suggested change:**
 ```python
 # At module level or as KnapsackEnv parameter
@@ -81,20 +77,24 @@ PENALTY_FOR_OVERFILL = -10.0
 return (new_weight, idx + 1), PENALTY_FOR_OVERFILL
 ```
 
----
-
-### [LOW] PY-SMELL-002 — Hard-coded RL hyperparameters
-
-**Location:** `Lesson1/main.py:117-118`  
-**Confidence:** High  
-**Principles:** KISS, Readability
-
 **Evidence:**
 ```python
 def __init__(self, env, epsilon=0.2, alpha=0.1, gamma=0.95):
 ```
+---
+**Location:** `Knapsack-Problem/main.py:87`  
+### [LOW] PY-SMELL-002 — Hard-coded RL hyperparameters
 
-**Why it matters:** While these are already configurable via parameters, the defaults are undocumented. Adding a comment or extracting to named constants at module level would clarify their purpose for readers unfamiliar with Q-learning.
+**Location:** `Lesson1/main.py:117-118`  
+**Location:** `Knapsack-Problem/main.py:117-118`  
+**Principles:** KISS, Readability
+
+**Evidence:**
+**Location:** `Knapsack-Problem/main.py:116-148`  
+def __init__(self, env, epsilon=0.2, alpha=0.1, gamma=0.95):
+```
+
+**Location:** `Knapsack-Problem/main.py` (entire file)  
 
 **Recommendation:** Add a comment block or constants documenting the hyperparameter choices:
 ```python

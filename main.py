@@ -3,6 +3,16 @@ import time
 from functools import wraps
 
 
+# --- Configuration Constants ---
+# Penalty for taking an item that overfills the backpack
+PENALTY_FOR_OVERFILL = -10.0
+
+# Q-learning hyperparameter defaults
+DEFAULT_EPSILON = 0.2   # exploration rate
+DEFAULT_ALPHA = 0.1     # learning rate
+DEFAULT_GAMMA = 0.95    # discount factor
+
+
 # --- Decorator Pattern ---
 
 def log_episode(func):
@@ -11,12 +21,17 @@ def log_episode(func):
     def wrapper(self, episode):
         result = func(self, episode)
         value, weight = result
-        best = self.best_value
+        # Determine best tracked value if available
+        if hasattr(self, "tracker") and self.tracker is not None and self.tracker.best_value != float("-inf"):
+            best_display = f"{self.tracker.best_value:.1f}"
+        else:
+            best_display = "N/A"
+
         print(
             f"  Episode {episode:5d} | "
             f"Reward: {value:7.1f} | "
             f"Weight: {weight}/{self.env.capacity} | "
-            f"Best: {best:.1f}"
+            f"Best: {best_display}"
         )
         return result
     return wrapper
@@ -112,9 +127,10 @@ class KnapsackEnv:
     The item's value teaches the agent to prefer valuable items.
     The cumulative reward across an episode = total value of selected items.
     """
-    def __init__(self, capacity, items):
+    def __init__(self, capacity, items, penalty=PENALTY_FOR_OVERFILL):
         self.capacity = capacity
         self.items = items  # list of (weight, value)
+        self.penalty = penalty
 
     def reset(self):
         """Reset environment to initial state: empty backpack, first item."""
@@ -131,7 +147,7 @@ class KnapsackEnv:
             new_weight = weight + item_w
             if new_weight > self.capacity:
                 # REWARD: Negative penalty for overfilling the backpack
-                return (new_weight, idx + 1), -10.0
+                return (new_weight, idx + 1), self.penalty
             # REWARD: Positive value for successfully taking an item
             return (new_weight, idx + 1), item_v
         # REWARD: Zero for skipping an item (no gain, no loss)
@@ -188,7 +204,7 @@ class QLearningAgent:
     - The term [reward + γ * max Q(s',a') - Q(s,a)] is the "TD error"
       (temporal difference error) — the gap between predicted and actual value.
     """
-    def __init__(self, env, epsilon=0.2, alpha=0.1, gamma=0.95):
+    def __init__(self, env, epsilon=DEFAULT_EPSILON, alpha=DEFAULT_ALPHA, gamma=DEFAULT_GAMMA, tracker=None):
         self.env = env
         # Closure: Q-table encapsulates the learning memory
         self.get_q, self.set_q, self.q_size = make_q_table()
@@ -196,8 +212,8 @@ class QLearningAgent:
         self.explore = make_epsilon_greedy(epsilon)
         self.alpha = alpha    # Learning rate (α): how fast to learn
         self.gamma = gamma    # Discount factor (γ): value of future rewards
-        self.best_value = float("-inf")
-        self.best_items = []
+        # Result tracking is delegated to an optional ResultTracker
+        self.tracker = tracker
 
     @log_episode
     def train_episode(self, episode):
@@ -230,7 +246,7 @@ class QLearningAgent:
             total_reward += reward
             state = next_state
 
-        # After episode: check if this was the best solution so far
+        # After episode: check solution quality and notify tracker if any
         items, weight, value = self.env.get_solution(self.get_q)
         if value > self.best_value:
             self.best_value = value
@@ -285,9 +301,10 @@ def main():
         (8, 10), (9, 14), (10, 11), (12, 18), (15, 20),
     ]
 
-    # === CREATE ENVIRONMENT AND AGENT ===
-    env = KnapsackEnv(capacity, items)
-    agent = QLearningAgent(env, epsilon=0.2, alpha=0.1, gamma=0.95)
+    # === CREATE ENVIRONMENT, TRACKER, AND AGENT ===
+    env = KnapsackEnv(capacity, items, penalty=PENALTY_FOR_OVERFILL)
+    tracker = ResultTracker()
+    agent = QLearningAgent(env, epsilon=DEFAULT_EPSILON, alpha=DEFAULT_ALPHA, gamma=DEFAULT_GAMMA, tracker=tracker)
 
     print("=" * 50)
     print("  RL KNAPSACK SOLVER")
@@ -297,13 +314,16 @@ def main():
     print(f"  Q-table entries after training:")
 
     # === TRAINING ===
-    # 500 episodes = 500 complete passes through all items.
+    # 10 episodes = 10 complete passes through all items.
     # Early episodes explore randomly; later episodes exploit learned Q-values.
-    agent.train(episodes=10)
+    agent.train(episodes=500)
 
     # === RESULTS ===
     print(f"\n  Q-table entries: {agent.q_size()}")
     display_result(env, agent)
+
+    # Print best result as tracked by the ResultTracker
+    print(f"\nBest tracked value: {tracker.best_value:.1f} (weight {tracker.best_weight})")
 
 
 if __name__ == "__main__":

@@ -40,11 +40,17 @@ def terminal_arg_parser():
     return parser.parse_args()
 
 
-def print_banner(env):
-    """Print the program banner to the terminal."""
+def print_banner(env, show_qtable_hint=True):
+    """Print the program banner to the terminal.
+
+    The "Q-table entries after training:" line is a teaser for the results
+    that follow on the terminal. When logging to CSV the results go into
+    the file instead, so the hint is suppressed (pass show_qtable_hint=False).
+    """
     print("=" * BANNER_WIDTH)
     print("  RL KNAPSACK SOLVER")
     print("=" * BANNER_WIDTH)
     print(f"  Capacity: {env.capacity}")
     print(f"  Items:    {env.items}")
-    print(f"  Q-table entries after training:")
+    if show_qtable_hint:
+        print(f"  Q-table entries after training:")

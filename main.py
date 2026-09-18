@@ -54,7 +54,7 @@ def main():
         tracker=tracker,
     )
 
-    print_banner(env)
+    print_banner(env, show_qtable_hint=args.log == "terminal")
     run_training(env, agent, tracker, logger)
 
 

@@ -5,10 +5,9 @@ from rl_knapsack.config import (
     DEFAULT_EPISODES,
     DEFAULT_EPSILON,
     DEFAULT_GAMMA,
-    ITEMS,
-    KNAPSACK_CAPACITY,
     RANDOM_SEED,
 )
+from rl_knapsack.items_loader import load_items
 from rl_knapsack.knapsack_env import KnapsackEnv
 from rl_knapsack.logger import make_logger
 from rl_knapsack.presentation import display_result, print_banner, terminal_arg_parser
@@ -41,8 +40,11 @@ def main():
     # Parse the arguments from the terminal
     args = terminal_arg_parser()
 
+    # === LOAD PROBLEM (capacity + items) FROM JSON ===
+    capacity, items = load_items(args.items)
+
     # === CREATE ENVIRONMENT, TRACKER, AND AGENT ===
-    env = KnapsackEnv(KNAPSACK_CAPACITY, ITEMS)
+    env = KnapsackEnv(capacity, items)
     tracker = ResultTracker()
     logger = make_logger(args.log, csv_path=args.csv_path)
     agent = QLearningAgent(

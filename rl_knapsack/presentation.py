@@ -1,6 +1,7 @@
 import argparse
 
 from .config import BANNER_WIDTH
+from .items_loader import DEFAULT_ITEMS_PATH
 
 
 # --- Presentation ---
@@ -35,6 +36,15 @@ def terminal_arg_parser():
         "--csv-path",
         default="training_log.csv",
         help="Output file for the CSV logger (default: training_log.csv)",
+    )
+    parser.add_argument(
+        "--items",
+        default=DEFAULT_ITEMS_PATH,
+        help=(
+            "Path to a JSON file defining the knapsack problem "
+            "({'capacity': int, 'items': [[weight, value], ...]}) "
+            f"(default: {DEFAULT_ITEMS_PATH})"
+        ),
     )
 
     return parser.parse_args()

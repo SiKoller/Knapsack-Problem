@@ -88,6 +88,12 @@ classDiagram
         +display_result(env, agent) None
     }
 
+    class load_items {
+        <<loader (items_loader.py)>>
+        +load_items(path) (capacity, items)
+        +DEFAULT_ITEMS_PATH
+    }
+
     class main {
         +main() None
     }
@@ -105,6 +111,7 @@ classDiagram
     main ..> make_logger : builds strategy
     make_logger ..> TerminalLogger : creates
     make_logger ..> CsvLogger : creates
+    main ..> load_items : loads problem (capacity + items) from JSON
     main ..> ResultTracker : instantiates tracker
     display_result --> KnapsackEnv : reads capacity/items/solution
     display_result --> QLearningAgent : uses its logger + Q-values
@@ -128,4 +135,5 @@ classDiagram
 | `make_epsilon_greedy(epsilon)` | Closure returning `choose` — balances exploration vs exploitation. |
 | `log_episode` / `time_execution` | Decorators applied to `QLearningAgent` methods; both delegate output to the agent's `Logger`. |
 | `display_result(env, agent)` | Delegates the solution report to the agent's `Logger` strategy. |
-| `main()` | Ties everything together: parses `--log`/`--csv-path`, builds `env`, `tracker`, `logger`, `agent`, trains, shows results. |
+| `main()` | Ties everything together: parses `--log`/`--csv-path`/`--items`, loads the problem via `load_items`, builds `env`, `tracker`, `logger`, `agent`, trains, shows results. |
+| `load_items(path)` | Defined in `items_loader.py`. Loads a knapsack problem from a JSON file (`{"capacity": int, "items": [[weight, value], ...]}`) and returns `(capacity, items)`. Defaults to `data/items.json` via `DEFAULT_ITEMS_PATH`; selectable with `--items`. |

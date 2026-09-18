@@ -1,4 +1,4 @@
-from config import PENALTY_FOR_OVERFILL
+from reward_strategy import KnapsackReward, RewardStrategy
 
 
 # --- Environment ---
@@ -21,19 +21,20 @@ class KnapsackEnv:
     At each step the agent sees one item and decides to include it or not.
 
     === REWARD FUNCTION ===
-    Rewards guide the agent toward optimal behavior:
+    The reward is delegated to an injected RewardStrategy (KnapsackReward
+    by default). Each strategy encodes its own reward logic:
     - +item_value  if the item fits and is taken
-    - PENALTY      if taking the item overfills (see config.PENALTY_FOR_OVERFILL)
+    - penalty      if taking the item overfills
     -  0.0         if the item is skipped
-
-    The penalty teaches the agent to avoid overfilling.
-    The item's value teaches the agent to prefer valuable items.
-    The cumulative reward across an episode = total value of selected items.
     """
-    def __init__(self, capacity, items, penalty=PENALTY_FOR_OVERFILL):
+    def __init__(self, capacity, items, reward_strategy=None):
         self.capacity = capacity
         self.items = items  # list of (weight, value)
-        self.penalty = penalty
+        # Reward function is an injected Strategy: swap in any
+        # RewardStrategy subclass without changing the transition logic.
+        self.reward_strategy = (
+            reward_strategy if reward_strategy is not None else KnapsackReward()
+        )
 
     def reset(self):
         """Reset environment to initial state: empty backpack, first item."""
@@ -42,19 +43,17 @@ class KnapsackEnv:
     def step(self, state, action):
         """Execute one step: return (next_state, reward).
 
-        REWARD FUNCTION — this is where the agent learns what is "good":
+        The transition logic (state update) lives here; the reward is
+        delegated to the injected RewardStrategy.
         """
         weight, idx = state
         if action == 1:
-            item_w, item_v = self.items[idx]
-            new_weight = weight + item_w
-            if new_weight > self.capacity:
-                # REWARD: Negative penalty for overfilling the backpack
-                return (new_weight, idx + 1), self.penalty
-            # REWARD: Positive value for successfully taking an item
-            return (new_weight, idx + 1), item_v
-        # REWARD: Zero for skipping an item (no gain, no loss)
-        return (weight, idx + 1), 0.0
+            item_w = self.items[idx][0]
+            next_state = (weight + item_w, idx + 1)
+        else:
+            next_state = (weight, idx + 1)
+        reward = self.reward_strategy.reward(state, action, next_state, self)
+        return next_state, reward
 
     def is_done(self, state):
         """Episode ends when all items have been considered."""

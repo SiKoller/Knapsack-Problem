@@ -7,7 +7,6 @@ from config import (
     DEFAULT_GAMMA,
     ITEMS,
     KNAPSACK_CAPACITY,
-    PENALTY_FOR_OVERFILL,
     RANDOM_SEED,
 )
 from knapsack_env import KnapsackEnv
@@ -43,7 +42,7 @@ def main():
     args = terminal_arg_parser()
 
     # === CREATE ENVIRONMENT, TRACKER, AND AGENT ===
-    env = KnapsackEnv(KNAPSACK_CAPACITY, ITEMS, penalty=PENALTY_FOR_OVERFILL)
+    env = KnapsackEnv(KNAPSACK_CAPACITY, ITEMS)
     tracker = ResultTracker()
     logger = make_logger(args.log, csv_path=args.csv_path)
     agent = QLearningAgent(

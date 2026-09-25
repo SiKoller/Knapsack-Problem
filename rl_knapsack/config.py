@@ -1,26 +1,38 @@
-# --- Configuration Constants ---
-# Central place for all shared constants so that environment, agent, and
-# presentation code can import them without circular dependencies.
+"""Validated settings and item data for the knapsack solver."""
 
-# Reproducibility
-RANDOM_SEED = 42
+from typing import Annotated, NamedTuple
 
-# Penalty for taking an item that overfills the backpack
-PENALTY_FOR_OVERFILL = -10.0
+from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt
 
-# Knapsack problem definition
-KNAPSACK_CAPACITY = 30
-ITEMS = [
-    # (weight, value) for each item
-    (2, 3), (3, 4), (4, 8), (5, 8), (7, 12),
-    (8, 10), (9, 14), (10, 11), (12, 18), (15, 20),
-]
 
-# Q-learning hyperparameter defaults
-DEFAULT_EPSILON = 0.2   # exploration rate
-DEFAULT_ALPHA = 0.1     # learning rate
-DEFAULT_GAMMA = 0.95    # discount factor
-DEFAULT_EPISODES = 500   # number of training episodes
+class Item(NamedTuple):
+    """Hold the weight and value of one item."""
 
-# Presentation
-BANNER_WIDTH = 50
+    weight: StrictFloat
+    value: StrictInt
+
+
+class ProblemConfig(BaseModel):
+    """Require the capacity and items from the problem file."""
+
+    model_config = ConfigDict(frozen=True)
+
+    capacity: Annotated[StrictFloat, Field(gt=0)]
+    items: tuple[Item, ...]
+
+
+class Config(BaseModel):
+    """Check the solver settings."""
+
+    model_config = ConfigDict(frozen=True)
+
+    random_seed: int = 42
+    penalty_for_overfill: float = -10.0
+    epsilon: Annotated[float, Field(ge=0, le=1)] = 0.2
+    alpha: Annotated[float, Field(gt=0, le=1)] = 0.1
+    gamma: Annotated[float, Field(ge=0, le=1)] = 0.95
+    episodes: Annotated[int, Field(gt=0)] = 500
+    banner_width: Annotated[int, Field(gt=0)] = 50
+
+
+CONFIG = Config()

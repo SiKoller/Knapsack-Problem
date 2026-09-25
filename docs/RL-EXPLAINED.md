@@ -25,12 +25,16 @@ The **0/1 Knapsack Problem**: Given a backpack with a weight capacity and a set 
 - Goal: maximize total value within the weight limit
 
 **Example:**
+
+Weights and capacity use floats. Item values and solution totals use integers.
+Rewards and Q-values use floats.
+
 ```
-Capacity: 30
-Items: [(2,3), (3,4), (4,8), (5,8), (7,12), (8,10), (9,14), (10,11), (12,18), (15,20)]
+Capacity: 30.0
+Items: [(2.0,3), (3.0,4), (4.0,8), (5.0,8), (7.0,12), (8.0,10), (9.0,14), (10.0,11), (12.0,18), (15.0,20)]
         weight, value
 
-Optimal: Items 0,1,2,3,4,6 → weight=30, value=49
+Optimal: Items 0,1,2,3,4,6 → weight=30.0, value=49
 ```
 
 ---
@@ -66,7 +70,7 @@ State = (current_weight, next_item_index)
 - `current_weight`: How much weight is currently in the backpack (0 to capacity)
 - `next_item_index`: Which item we are deciding on next (0 to len(items)-1)
 
-**Example:** `(12, 5)` means the backpack weighs 12 and we're deciding on item 5.
+**Example:** `(12.0, 5)` means the backpack weighs 12.0 and the next item is item 5.
 
 ### Action Space
 
@@ -167,7 +171,7 @@ The term `[r + γ · max Q(s',a') − Q(s,a)]` is called the **TD error** (tempo
 
 ### Convergence
 
-After ~15 episodes, the agent finds the optimal solution (value 49.0). The Q-table grows to ~267 entries after 500 episodes.
+After ~15 episodes, the agent finds the optimal solution (value 49). The Q-table grows to ~267 entries after 500 episodes.
 
 ---
 
@@ -234,7 +238,7 @@ main()
         │
         └── for each episode:
               │
-              ├── env.reset() → initial state (0, 0)
+              ├── env.reset() → initial state (0.0, 0)
               │
               └── for each item:
                     │

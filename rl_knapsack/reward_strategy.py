@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from .config import PENALTY_FOR_OVERFILL
+from .config import CONFIG
 
 
 # --- Reward Strategy ---
@@ -38,17 +38,17 @@ class KnapsackReward(RewardStrategy):
     The cumulative reward across an episode = total value of selected items.
     """
 
-    def __init__(self, penalty=PENALTY_FOR_OVERFILL):
+    def __init__(self, penalty=CONFIG.penalty_for_overfill):
         self.penalty = penalty
 
     def reward(self, state, action, next_state, env) -> float:
         weight, idx = state
         if action == 1:
-            item_w, item_v = env.items[idx]
-            if weight + item_w > env.capacity:
+            item = env.items[idx]
+            if weight + item.weight > env.capacity:
                 # Negative penalty for overfilling the backpack
                 return self.penalty
             # Positive value for successfully taking an item
-            return item_v
+            return float(item.value)
         # Zero for skipping an item (no gain, no loss)
         return 0.0

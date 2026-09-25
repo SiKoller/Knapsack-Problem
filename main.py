@@ -1,15 +1,9 @@
 import random
 
-from rl_knapsack.config import (
-    DEFAULT_ALPHA,
-    DEFAULT_EPISODES,
-    DEFAULT_EPSILON,
-    DEFAULT_GAMMA,
-    RANDOM_SEED,
-)
+from rl_knapsack.config import CONFIG
 from rl_knapsack.items_loader import load_items
 from rl_knapsack.knapsack_env import KnapsackEnv
-from rl_knapsack.logger import make_logger
+from rl_knapsack.logger import RESULT, make_logger
 from rl_knapsack.presentation import display_result, print_banner, terminal_arg_parser
 from rl_knapsack.q_learning_agent import QLearningAgent
 from rl_knapsack.result_tracker import ResultTracker
@@ -21,21 +15,22 @@ from rl_knapsack.result_tracker import ResultTracker
 def run_training(env, agent, tracker, logger):
     """Run training and display the results."""
     try:
-        agent.train(episodes=DEFAULT_EPISODES)
+        agent.train(episodes=CONFIG.episodes)
 
         # === RESULTS ===
-        logger.log_message(f"\n  Q-table entries: {agent.q_size()}")
+        logger.log_message(f"Q-table entries: {agent.q_size()}", RESULT)
         display_result(env, agent)
         logger.log_message(
-            f"\nBest tracked value: {tracker.best_value:.1f} "
-            f"(weight {tracker.best_weight})"
+            f"\nBest tracked value: {tracker.best_value} "
+            f"(weight {tracker.best_weight})",
+            RESULT,
         )
     finally:
         logger.close()
 
 
 def main():
-    random.seed(RANDOM_SEED)
+    random.seed(CONFIG.random_seed)
 
     # Parse the arguments from the terminal
     args = terminal_arg_parser()
@@ -46,13 +41,13 @@ def main():
     # === CREATE ENVIRONMENT, TRACKER, AND AGENT ===
     env = KnapsackEnv(capacity, items)
     tracker = ResultTracker()
-    logger = make_logger(args.log, csv_path=args.csv_path)
+    logger = make_logger(args.log, csv_path=args.csv_path, level=args.log_level)
     agent = QLearningAgent(
         env,
         logger=logger,
-        epsilon=DEFAULT_EPSILON,
-        alpha=DEFAULT_ALPHA,
-        gamma=DEFAULT_GAMMA,
+        epsilon=CONFIG.epsilon,
+        alpha=CONFIG.alpha,
+        gamma=CONFIG.gamma,
         tracker=tracker,
     )
 

@@ -7,7 +7,7 @@ classDiagram
     direction TB
 
     class KnapsackEnv {
-        +int capacity
+        +float capacity
         +list items
         +float penalty
         +reset() tuple
@@ -24,15 +24,15 @@ classDiagram
         +float epsilon
         +float alpha
         +float gamma
-        +ResultTracker tracker  (optional, default None)
+        +ResultTracker tracker  (required)
         +train_episode(episode) tuple
         +train(episodes) None
     }
 
     class ResultTracker {
-        +float best_value
+        +int_or_None best_value
         +list best_items
-        +int best_weight
+        +float best_weight
         +update(value, items, weight) None
         +reset() None
     }
@@ -101,7 +101,7 @@ classDiagram
     QLearningAgent --> KnapsackEnv : uses / owns env
     KnapsackEnv <.. QLearningAgent : observes (state, reward)
     QLearningAgent --> Logger : uses (constructor injection)
-    QLearningAgent --> ResultTracker : optional best-tracking
+    QLearningAgent --> ResultTracker : tracks the best result
     Logger <|-- TerminalLogger
     Logger <|-- CsvLogger
     QLearningAgent ..> make_q_table : builds Q-table closure
@@ -136,4 +136,4 @@ classDiagram
 | `log_episode` / `time_execution` | Decorators applied to `QLearningAgent` methods; both delegate output to the agent's `Logger`. |
 | `display_result(env, agent)` | Delegates the solution report to the agent's `Logger` strategy. |
 | `main()` | Ties everything together: parses `--log`/`--csv-path`/`--items`, loads the problem via `load_items`, builds `env`, `tracker`, `logger`, `agent`, trains, shows results. |
-| `load_items(path)` | Defined in `items_loader.py`. Loads a knapsack problem from a JSON file (`{"capacity": int, "items": [[weight, value], ...]}`) and returns `(capacity, items)`. Defaults to `data/items.json` via `DEFAULT_ITEMS_PATH`; selectable with `--items`. |
+| `load_items(path)` | Loads capacity and items from JSON through `ProblemConfig`. Capacity and weights are floats; item values are integers. Returns `(capacity, items)`. Defaults to `data/items.json`; selectable with `--items`. |

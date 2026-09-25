@@ -2,8 +2,8 @@ import random
 import time
 from functools import wraps
 
-from .config import DEFAULT_ALPHA, DEFAULT_EPSILON, DEFAULT_GAMMA
-from .logger import TerminalLogger
+from .config import CONFIG
+from .result_tracker import ResultTracker
 
 
 # --- Decorator Pattern ---
@@ -13,20 +13,13 @@ def log_episode(func):
     @wraps(func)
     def wrapper(self, episode):
         result = func(self, episode)
-        value, weight = result
-        # Best value known so far: prefer the ResultTracker if present,
-        # otherwise fall back to the agent's own best_value attribute.
-        tracker = getattr(self, "tracker", None)
-        if tracker is not None and tracker.best_value != float("-inf"):
-            best = tracker.best_value
-        else:
-            best = getattr(self, "best_value", float("-inf"))
+        reward, weight = result
         # The agent's logger is an injected Strategy service (terminal or
         # CSV): the decorator only depends on the Logger interface.
         self.logger.log_episode(
-            episode, value, weight,
+            episode, reward, weight,
             capacity=self.env.capacity,
-            best=best,
+            best=self.tracker.best_value,
         )
         return result
     return wrapper
@@ -116,26 +109,19 @@ class QLearningAgent:
     - The term [reward + γ * max Q(s',a') - Q(s,a)] is the "TD error"
       (temporal difference error) — the gap between predicted and actual value.
     """
-    def __init__(self, env, logger=None, epsilon=DEFAULT_EPSILON, alpha=DEFAULT_ALPHA, gamma=DEFAULT_GAMMA, tracker=None):
+    def __init__(self, env, tracker: ResultTracker, logger, epsilon=CONFIG.epsilon, alpha=CONFIG.alpha, gamma=CONFIG.gamma):
         self.env = env
-        # Logger strategy (injected service): TerminalLogger by default,
-        # or a CsvLogger for file output — swap by passing a different one.
-        self.logger = logger if logger is not None else TerminalLogger()
+        self.logger = logger
         # Closure: Q-table encapsulates the learning memory
         self.get_q, self.set_q, self.q_size = make_q_table()
         # Closure: epsilon-greedy policy encapsulates exploration strategy
         self.explore = make_epsilon_greedy(epsilon)
         self.alpha = alpha    # Learning rate (α): how fast to learn
         self.gamma = gamma    # Discount factor (γ): value of future rewards
-        # Result tracking is delegated to an optional ResultTracker
         self.tracker = tracker
-        if tracker is None:
-            # Fallback bookkeeping when no ResultTracker is supplied
-            self.best_value = float("-inf")
-            self.best_items = []
 
     @log_episode
-    def train_episode(self, episode):
+    def train_episode(self, episode: int) -> tuple[float, float]:
         """Run one complete episode (one pass through all items).
 
         Each episode:
@@ -165,13 +151,9 @@ class QLearningAgent:
             total_reward += reward
             state = next_state
 
-        # After episode: check solution quality and notify tracker if any
+        # Record the solution after each episode.
         items, weight, value = self.env.get_solution(self.get_q)
-        if self.tracker is not None:
-            self.tracker.update(value, items, weight)
-        elif value > self.best_value:
-            self.best_value = value
-            self.best_items = items
+        self.tracker.update(value, items, weight)
 
         return total_reward, weight
 

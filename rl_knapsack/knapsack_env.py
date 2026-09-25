@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
+from collections.abc import Iterable
 
+from .config import Item
 from .reward_strategy import KnapsackReward, RewardStrategy
 
 
@@ -53,7 +55,7 @@ class KnapsackEnv:
     State: tuple (current_weight, next_item_index)
     - current_weight: how much weight is currently in the backpack
     - next_item_index: which item we are deciding on next
-    The state space has capacity * len(items) possible states.
+    Current weight is a float. The item index is an integer.
 
     === ACTION SPACE ===
     Actions: 0 = skip item, 1 = take item
@@ -71,9 +73,9 @@ class KnapsackEnv:
     - penalty      if taking the item overfills
     -  0.0         if the item is skipped
     """
-    def __init__(self, capacity, items, reward_strategy=None):
+    def __init__(self, capacity: float, items: Iterable[Item], reward_strategy=None):
         self.capacity = capacity
-        self.items = items  # list of (weight, value)
+        self.items = list(items)
         # Reward function is an injected Strategy: swap in any
         # RewardStrategy subclass without changing the transition logic.
         self.reward_strategy = (
@@ -83,15 +85,15 @@ class KnapsackEnv:
         # reset() has been called.
         self._phase = NotStarted()
 
-    def reset(self):
+    def reset(self) -> tuple[float, int]:
         """Reset environment to initial state: empty backpack, first item.
 
         Valid from any phase: starts (or restarts) an episode.
         """
         self._phase = InEpisode()
-        return (0, 0)
+        return (0.0, 0)
 
-    def step(self, state, action):
+    def step(self, state: tuple[float, int], action: int) -> tuple[tuple[float, int], float]:
         """Execute one step: return (next_state, reward).
 
         Delegated to the current lifecycle phase: illegal steps (before
@@ -110,7 +112,7 @@ class KnapsackEnv:
         """
         weight, idx = state
         if action == 1:
-            item_w = self.items[idx][0]
+            item_w = self.items[idx].weight
             next_state = (weight + item_w, idx + 1)
         else:
             next_state = (weight, idx + 1)
@@ -119,7 +121,7 @@ class KnapsackEnv:
             self._phase = EpisodeFinished()
         return next_state, reward
 
-    def get_solution(self, get_q):
+    def get_solution(self, get_q) -> tuple[list[int], float, int]:
         """Extract the best items according to current Q-table.
 
         Uses the learned Q-values to make greedy decisions (no exploration).
@@ -127,7 +129,7 @@ class KnapsackEnv:
         """
         state = self.reset()
         taken = []
-        total_w, total_v = 0, 0
+        total_w, total_v = 0.0, 0
         while not self.is_done():
             # Greedy: always pick the action with highest Q-value
             action = max(
@@ -135,7 +137,8 @@ class KnapsackEnv:
                 key=lambda a: get_q(state, a),
             )
             if action == 1:
-                w, v = self.items[state[1]]
+                item = self.items[state[1]]
+                w, v = item.weight, item.value
                 if total_w + w <= self.capacity:
                     taken.append(state[1])
                     total_w += w

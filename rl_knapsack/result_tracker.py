@@ -3,7 +3,7 @@
 Extracted from QLearningAgent so that learning (Q-table updates) and
 bookkeeping (remembering the best result) are separate responsibilities.
 
-    best_value  highest total value seen so far (starts at -inf)
+    best_value  highest integer value seen so far (starts at None)
     best_items  item indices of that best solution
     best_weight total weight of that best solution
 """
@@ -19,15 +19,15 @@ class ResultTracker:
     def __init__(self):
         self.reset()
 
-    def update(self, value, items, weight):
+    def update(self, value: int, items: list[int], weight: float):
         """Record a candidate solution if it beats the current best."""
-        if value > self.best_value:
+        if self.best_value is None or value > self.best_value:
             self.best_value = value
             self.best_items = list(items)
             self.best_weight = weight
 
     def reset(self):
         """Forget all tracked results (back to the initial state)."""
-        self.best_value = float("-inf")
+        self.best_value: int | None = None
         self.best_items = []
-        self.best_weight = 0
+        self.best_weight: float = 0.0

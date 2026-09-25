@@ -17,23 +17,29 @@ the concrete strategy can be swapped without touching the agent or main().
     make_logger()     (simple factory that picks the strategy via --log)
 """
 import csv
+import logging
 import sys
 from abc import ABC, abstractmethod
+from .config import CONFIG
+
+
+RESULT = 25
+logging.addLevelName(RESULT, "RESULT")
 
 
 class Logger(ABC):
     """Strategy interface: every logger strategy implements these methods."""
 
     @abstractmethod
-    def log_episode(self, episode, reward, weight, capacity, best):
+    def log_episode(self, episode: int, reward: float, weight: float, capacity: float, best: int | None):
         """Log the outcome of one training episode."""
 
     @abstractmethod
-    def log_message(self, message):
-        """Log a free-form message (training start/end, timing, ...)."""
+    def log_message(self, message, level=logging.INFO):
+        """Log a message at the given level."""
 
     @abstractmethod
-    def log_solution(self, items, total_w, total_v, capacity, available):
+    def log_solution(self, items: list[tuple[int, float, int]], total_w: float, total_v: int, capacity: float, available: int):
         """Log the final solution.
 
         items:    list of (index, weight, value) tuples for selected items
@@ -53,41 +59,45 @@ class TerminalLogger(Logger):
     client code only deals with structured data.
     """
 
-    def __init__(self, stream=None):
-        self.stream = stream if stream is not None else sys.stdout
+    def __init__(self, stream=None, level=logging.INFO):
+        self._logger = logging.Logger(__name__)
+        self._logger.setLevel(level.upper() if isinstance(level, str) else level)
+        self._handler = logging.StreamHandler(stream if stream is not None else sys.stdout)
+        self._handler.setFormatter(logging.Formatter("[%(levelname)s] %(message)s"))
+        self._logger.addHandler(self._handler)
 
-    def log_episode(self, episode, reward, weight, capacity, best):
-        # "N/A" until the first improvement has been tracked (-inf sentinel)
-        best_display = "N/A" if best == float("-inf") else f"{best:.1f}"
-        print(
-            f"  Episode {episode:5d} | "
+    def log_episode(self, episode: int, reward: float, weight: float, capacity: float, best: int | None):
+        best_display = "N/A" if best is None else str(best)
+        self._logger.debug(
+            f"Episode {episode:5d} | "
             f"Reward: {reward:7.1f} | "
             f"Weight: {weight}/{capacity} | "
             f"Best: {best_display}",
-            file=self.stream,
         )
 
-    def log_message(self, message):
-        print(message, file=self.stream)
+    def log_message(self, message, level=logging.INFO):
+        self._logger.log(level, message.strip("\n"))
 
-    def log_solution(self, items, total_w, total_v, capacity, available):
-        print("\n" + "=" * 50, file=self.stream)
-        print("  OPTIMAL SOLUTION", file=self.stream)
-        print("=" * 50, file=self.stream)
-        print(f"  Backpack capacity: {capacity}", file=self.stream)
-        print(f"  Items available:   {available}", file=self.stream)
-        print(file=self.stream)
-        print("  Selected items:", file=self.stream)
-        for index, w, v in items:
-            print(f"    Item {index}: weight={w}, value={v}", file=self.stream)
-        print(file=self.stream)
-        print(f"  Total weight: {total_w} / {capacity}", file=self.stream)
-        print(f"  Total value:  {total_v:.1f}", file=self.stream)
-        print("=" * 50, file=self.stream)
+    def log_solution(self, items: list[tuple[int, float, int]], total_w: float, total_v: int, capacity: float, available: int):
+        lines = [
+            "OPTIMAL SOLUTION",
+            "=" * CONFIG.banner_width,
+            f"  Backpack capacity: {capacity}",
+            f"  Items available:   {available}",
+            "",
+            "  Selected items:",
+            *(f"    Item {index}: weight={w}, value={v}" for index, w, v in items),
+            "",
+            f"  Total weight: {total_w} / {capacity}",
+            f"  Total value:  {total_v}",
+            "=" * CONFIG.banner_width,
+        ]
+        self.log_message("\n".join(lines), RESULT)
 
     def close(self):
-        """No resources to release for a plain text stream."""
-        pass
+        """Release the handler. Keep the output stream open."""
+        self._logger.removeHandler(self._handler)
+        self._handler.close()
 
 
 class CsvLogger(Logger):
@@ -109,14 +119,11 @@ class CsvLogger(Logger):
 
     def _row(self, **fields):
         """Write one event row; fields not provided become empty cells."""
-        row = {col: "" for col in self.COLUMNS}
-        row.update(fields)
-        self._writer.writerow(row)
+        self._writer.writerow(fields)
 
-    def log_episode(self, episode, reward, weight, capacity, best):
-        # Leave best_value empty until the tracker records a first best
-        # (the -inf sentinel would otherwise leak into the CSV as junk).
-        best_cell = "" if best == float("-inf") else best
+    def log_episode(self, episode: int, reward: float, weight: float, capacity: float, best: int | None):
+        # Leave the cell empty until a result is recorded.
+        best_cell = "" if best is None else best
         self._row(
             event="episode",
             episode=episode,
@@ -125,11 +132,11 @@ class CsvLogger(Logger):
             best_value=best_cell,
         )
 
-    def log_message(self, message):
+    def log_message(self, message, level=logging.INFO):
         # Normalize free-form text so CSV cells stay clean (single line)
         self._row(event="message", message=message.strip())
 
-    def log_solution(self, items, total_w, total_v, capacity, available):
+    def log_solution(self, items: list[tuple[int, float, int]], total_w: float, total_v: int, capacity: float, available: int):
         self._row(
             event="solution",
             total_weight=total_w,
@@ -143,10 +150,10 @@ class CsvLogger(Logger):
 
 # --- Simple factory ---
 
-def make_logger(kind, csv_path="training_log.csv", stream=None):
+def make_logger(kind, csv_path="training_log.csv", stream=None, level=logging.INFO):
     """Return the logger strategy matching ``kind`` ("terminal" or "csv")."""
     if kind == "terminal":
-        return TerminalLogger(stream=stream)
+        return TerminalLogger(stream=stream, level=level)
     if kind == "csv":
         return CsvLogger(path=csv_path)
     raise ValueError(f"Unknown logger kind: {kind!r} (use 'terminal' or 'csv')")

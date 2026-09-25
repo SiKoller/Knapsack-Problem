@@ -1,6 +1,6 @@
 import argparse
 
-from .config import BANNER_WIDTH
+from .config import CONFIG
 from .items_loader import DEFAULT_ITEMS_PATH
 
 
@@ -11,7 +11,7 @@ from .items_loader import DEFAULT_ITEMS_PATH
 def display_result(env, agent):
     """Show the optimal solution via the agent's Logger strategy."""
     indices, total_w, total_v = env.get_solution(agent.get_q)
-    selected = [(i, *env.items[i]) for i in indices]  # (index, weight, value)
+    selected = [(i, env.items[i].weight, env.items[i].value) for i in indices]
     agent.logger.log_solution(
         items=selected,
         total_w=total_w,
@@ -38,11 +38,17 @@ def terminal_arg_parser():
         help="Output file for the CSV logger (default: training_log.csv)",
     )
     parser.add_argument(
+        "--log-level",
+        choices=["debug", "info", "result", "warning", "error", "critical"],
+        default="info",
+        help="Minimum terminal log level (default: info)",
+    )
+    parser.add_argument(
         "--items",
         default=DEFAULT_ITEMS_PATH,
         help=(
             "Path to a JSON file defining the knapsack problem "
-            "({'capacity': int, 'items': [[weight, value], ...]}) "
+            "({'capacity': float, 'items': [[float weight, int value], ...]}) "
             f"(default: {DEFAULT_ITEMS_PATH})"
         ),
     )
@@ -57,10 +63,10 @@ def print_banner(env, show_qtable_hint=True):
     that follow on the terminal. When logging to CSV the results go into
     the file instead, so the hint is suppressed (pass show_qtable_hint=False).
     """
-    print("=" * BANNER_WIDTH)
+    print("=" * CONFIG.banner_width)
     print("  RL KNAPSACK SOLVER")
-    print("=" * BANNER_WIDTH)
+    print("=" * CONFIG.banner_width)
     print(f"  Capacity: {env.capacity}")
-    print(f"  Items:    {env.items}")
+    print(f"  Items:    {[(item.weight, item.value) for item in env.items]}")
     if show_qtable_hint:
         print(f"  Q-table entries after training:")

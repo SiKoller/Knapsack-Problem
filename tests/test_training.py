@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from rl_knapsack.action import Action
 from rl_knapsack.config import Item
 from rl_knapsack.knapsack_env import KnapsackEnv
 from rl_knapsack.logger import CsvLogger, TerminalLogger
@@ -18,8 +19,11 @@ class TestTraining(unittest.TestCase):
         self.addCleanup(logger.close)
         tracker = ResultTracker()
         agent = QLearningAgent(KnapsackEnv(2.5, [Item(2.5, 3)]), tracker, logger=logger)
-        agent.explore = lambda state, actions, get_q: 1
+        agent.explore = lambda state, actions, get_q: Action.TAKE
         agent.train(1)
+        self.assertAlmostEqual(agent.get_q((0.0, 0), Action.TAKE), 0.3)
+        self.assertEqual(agent.get_q((0.0, 0), Action.SKIP), 0.0)
+        self.assertEqual(agent.q_size(), 1)
         self.assertEqual((tracker.best_items, tracker.best_weight, tracker.best_value), ([0], 2.5, 3))
         self.assertIs(type(tracker.best_weight), float)
         self.assertIs(type(tracker.best_value), int)

@@ -48,7 +48,7 @@ Reinforcement learning learns optimal behavior through trial and error. The key 
 | **Agent** | The learner/decision maker | `QLearningAgent` |
 | **Environment** | The world the agent interacts with | `KnapsackEnv` |
 | **State** | Current situation of the agent | `(current_weight, next_item_index)` |
-| **Action** | What the agent can do | `0` (skip) or `1` (take item) |
+| **Action** | What the agent can do | `Action.SKIP` or `Action.TAKE` |
 | **Reward** | Feedback from the environment | Item value or penalty |
 | **Policy** | Strategy for choosing actions | Epsilon-greedy |
 | **Q-Value** | Estimated quality of (state, action) | Stored in Q-table |
@@ -75,11 +75,15 @@ State = (current_weight, next_item_index)
 ### Action Space
 
 ```
-Action = 0 or 1
+Action.SKIP or Action.TAKE
 ```
 
-- `0` = skip the current item
-- `1` = take the current item (if it fits)
+- `Action.SKIP`: skip the current item.
+- `Action.TAKE`: take the current item.
+
+`Action` is an `IntEnum` with values `SKIP = 0` and `TAKE = 1`.
+Its members have the same equality and hash values as those integers.
+The Q-table still uses `(state, action)` keys. Each action has a separate entry.
 
 ### Reward Function
 

@@ -11,6 +11,7 @@ Modules:
 - presentation:      banner, result display, and CLI argument parsing
 """
 
+from .action import Action
 from .config import CONFIG, Config, Item
 from .items_loader import load_items
 from .knapsack_env import KnapsackEnv
@@ -21,6 +22,7 @@ from .result_tracker import ResultTracker
 from .reward_strategy import KnapsackReward, RewardStrategy
 
 __all__ = [
+    "Action",
     "CONFIG",
     "Config",
     "CsvLogger",

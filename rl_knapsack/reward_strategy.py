@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+from .action import Action
 from .config import CONFIG
 
 
@@ -13,12 +14,12 @@ class RewardStrategy(ABC):
     """Interface for computing the reward of a single transition."""
 
     @abstractmethod
-    def reward(self, state, action, next_state, env) -> float:
+    def reward(self, state, action: Action, next_state, env) -> float:
         """Return the reward for taking `action` from `state`.
 
         Args:
             state:      state before the action (e.g. (weight, item_index))
-            action:     action taken (0 = skip, 1 = take)
+            action:     Action.SKIP or Action.TAKE
             next_state: state after the action
             env:        the environment, for inspecting capacity/items
         """
@@ -41,9 +42,9 @@ class KnapsackReward(RewardStrategy):
     def __init__(self, penalty=CONFIG.penalty_for_overfill):
         self.penalty = penalty
 
-    def reward(self, state, action, next_state, env) -> float:
+    def reward(self, state, action: Action, next_state, env) -> float:
         weight, idx = state
-        if action == 1:
+        if action == Action.TAKE:
             item = env.items[idx]
             if weight + item.weight > env.capacity:
                 # Negative penalty for overfilling the backpack

@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 
+from .action import Action
 from .config import Item
 from .reward_strategy import KnapsackReward, RewardStrategy
 
@@ -16,7 +17,7 @@ class EnvState(ABC):
     """Phase of a KnapsackEnv episode lifecycle."""
 
     @abstractmethod
-    def step(self, env, state, action):
+    def step(self, env, state, action: Action):
         """Handle a step() call in this phase; raise if not permitted."""
         raise NotImplementedError
 
@@ -24,21 +25,21 @@ class EnvState(ABC):
 class NotStarted(EnvState):
     """Fresh environment: before the first reset(). No stepping allowed."""
 
-    def step(self, env, state, action):
+    def step(self, env, state, action: Action):
         raise RuntimeError("step() called before reset()")
 
 
 class InEpisode(EnvState):
     """Inside an episode: stepping is allowed."""
 
-    def step(self, env, state, action):
+    def step(self, env, state, action: Action):
         return env._advance(state, action)
 
 
 class EpisodeFinished(EnvState):
     """All items have been considered. No more stepping allowed."""
 
-    def step(self, env, state, action):
+    def step(self, env, state, action: Action):
         raise RuntimeError("step() called after the episode finished")
 
 
@@ -58,7 +59,7 @@ class KnapsackEnv:
     Current weight is a float. The item index is an integer.
 
     === ACTION SPACE ===
-    Actions: 0 = skip item, 1 = take item
+    Actions: Action.SKIP or Action.TAKE.
     At each step the agent sees one item and decides to include it or not.
 
     === LIFECYCLE (State pattern) ===
@@ -93,7 +94,7 @@ class KnapsackEnv:
         self._phase = InEpisode()
         return (0.0, 0)
 
-    def step(self, state: tuple[float, int], action: int) -> tuple[tuple[float, int], float]:
+    def step(self, state: tuple[float, int], action: Action) -> tuple[tuple[float, int], float]:
         """Execute one step: return (next_state, reward).
 
         Delegated to the current lifecycle phase: illegal steps (before
@@ -105,13 +106,13 @@ class KnapsackEnv:
         """Episode ends when all items have been considered."""
         return isinstance(self._phase, EpisodeFinished)
 
-    def _advance(self, state, action):
+    def _advance(self, state, action: Action):
         """Transition math + reward; called by the InEpisode phase.
 
         The reward is delegated to the injected RewardStrategy.
         """
         weight, idx = state
-        if action == 1:
+        if action == Action.TAKE:
             item_w = self.items[idx].weight
             next_state = (weight + item_w, idx + 1)
         else:
@@ -133,10 +134,10 @@ class KnapsackEnv:
         while not self.is_done():
             # Greedy: always pick the action with highest Q-value
             action = max(
-                [0, 1],
+                Action,
                 key=lambda a: get_q(state, a),
             )
-            if action == 1:
+            if action == Action.TAKE:
                 item = self.items[state[1]]
                 w, v = item.weight, item.value
                 if total_w + w <= self.capacity:

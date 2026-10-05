@@ -124,6 +124,7 @@ classDiagram
 
 | Component | Role |
 | --- | --- |
+| `Action` | Names the two choices: `Action.SKIP` and `Action.TAKE`. Used in the environment, reward calculation, policy, and Q-table. |
 | `KnapsackEnv` | Defines the state space, action space, and reward function (0/1 knapsack). |
 | `QLearningAgent` | The learner — runs the Q-learning loop with the Bellman equation. Owns a `KnapsackEnv` and receives a `Logger` via constructor injection. |
 | `ResultTracker` | Remembers the best (highest-value) solution found during training (`update` / `reset`). |

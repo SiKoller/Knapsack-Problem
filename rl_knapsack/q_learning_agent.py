@@ -1,7 +1,9 @@
 import random
 import time
 from functools import wraps
+from collections.abc import Sequence
 
+from .action import Action
 from .config import CONFIG
 from .result_tracker import ResultTracker
 
@@ -55,11 +57,11 @@ def make_q_table():
     """
     table = {}  # PRIVATE: {(state, action) -> Q-value}
 
-    def get_q(state, action):
+    def get_q(state, action: Action):
         """Return Q-value for a (state, action) pair. Defaults to 0.0."""
         return table.get((state, action), 0.0)
 
-    def set_q(state, action, value):
+    def set_q(state, action: Action, value):
         """Update Q-value for a (state, action) pair."""
         table[(state, action)] = value
 
@@ -79,7 +81,7 @@ def make_epsilon_greedy(epsilon):
     With probability epsilon, a random action is chosen (exploration).
     Otherwise, the action with the highest Q-value is chosen (exploitation).
     """
-    def choose(state, actions, get_q):
+    def choose(state, actions: Sequence[Action], get_q) -> Action:
         if random.random() < epsilon:
             return random.choice(actions)          # EXPLORE: random action
         q_values = [(get_q(state, a), a) for a in actions]
@@ -134,14 +136,14 @@ class QLearningAgent:
 
         while not self.env.is_done():
             # EXPLORE: agent selects action using epsilon-greedy policy
-            action = self.explore(state, [0, 1], self.get_q)
+            action = self.explore(state, tuple(Action), self.get_q)
 
             # ENVIRONMENT: execute action, observe next_state and reward
             next_state, reward = self.env.step(state, action)
 
             # === Q-LEARNING UPDATE (Bellman Equation) ===
             # This is the core of the learning algorithm:
-            best_next = max(self.get_q(next_state, a) for a in [0, 1])
+            best_next = max(self.get_q(next_state, candidate) for candidate in Action)
             old_q = self.get_q(state, action)
             new_q = old_q + self.alpha * (reward + self.gamma * best_next - old_q)
             self.set_q(state, action, new_q)
